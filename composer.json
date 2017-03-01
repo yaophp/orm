@@ -9,12 +9,12 @@
     "authors" : [
         {
             "name": "yaophp",
-            "email": "yaophp@163.com",
+            "email": "yaophp@163.com"
         }
     ],
     "autoload": {
     		"psr-4": {
-			"orm\\": "src/",
+			"yaophp\\": "src/",
 			"think\\": "src/think"
     		}
     }

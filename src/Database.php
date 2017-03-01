@@ -1,6 +1,6 @@
 <?php
 
-namespace orm;
+namespace yaophp;
 
 use think\Config;
 

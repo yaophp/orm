@@ -1,25 +1,34 @@
 
+## About
 An orm lib independence from ThinkPHP 5.0.2 
 
 
-About ThinkPHP (http://thinkphp.cn)
+## Installation
 
+```
+git clone  then composer install 
+```
 
-Fast start: git clone or composer require then make a demo.php
+or
 
-................................................................demo.php
+```
+composer require yaophp/orm
+```
 
+## Usage
+### Demo.php 
+```php
 <?php
 require "vendor/autoload.php";
 
-use orm\Database;
+use yaophp\Database;
 use think\Db;
 use think\Model;
 
 //your database config, more info in orm/src/config.php
 Database::config([
-        'username' => 'yourusername',
-        'password' => 'yourpassword',
+        'username' => 'yourusername', 
+        'password' => 'yourpassword', 
         'database' => 'yourdatabase'
     ]);
 
@@ -41,4 +50,7 @@ class Article extends Model
 $article = new Article();
 var_dump($article->getId(1));
 
-................................................................having fun
+```
+
+## link
+ThinkPHP (http://thinkphp.cn)
