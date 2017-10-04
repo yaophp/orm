@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -20,6 +20,8 @@ use think\db\Connection;
 class Sqlite extends Connection
 {
 
+    protected $builder = '\\think\\db\\builder\\Sqlite';
+
     /**
      * 解析pdo连接的dsn信息
      * @access protected
@@ -29,6 +31,7 @@ class Sqlite extends Connection
     protected function parseDsn($config)
     {
         $dsn = 'sqlite:' . $config['database'];
+
         return $dsn;
     }
 
@@ -40,16 +43,13 @@ class Sqlite extends Connection
      */
     public function getFields($tableName)
     {
-        $this->initConnect(true);
         list($tableName) = explode(' ', $tableName);
         $sql             = 'PRAGMA table_info( ' . $tableName . ' )';
-        // 调试开始
-        $this->debug(true);
-        $pdo = $this->linkID->query($sql);
-        // 调试结束
-        $this->debug(false, $sql);
+
+        $pdo    = $this->query($sql, [], false, true);
         $result = $pdo->fetchAll(PDO::FETCH_ASSOC);
         $info   = [];
+
         if ($result) {
             foreach ($result as $key => $val) {
                 $val                = array_change_key_case($val);
@@ -63,6 +63,7 @@ class Sqlite extends Connection
                 ];
             }
         }
+
         return $this->fieldCase($info);
     }
 
@@ -74,20 +75,18 @@ class Sqlite extends Connection
      */
     public function getTables($dbName = '')
     {
-        $this->initConnect(true);
         $sql = "SELECT name FROM sqlite_master WHERE type='table' "
             . "UNION ALL SELECT name FROM sqlite_temp_master "
             . "WHERE type='table' ORDER BY name";
-        // 调试开始
-        $this->debug(true);
-        $pdo = $this->linkID->query($sql);
-        // 调试结束
-        $this->debug(false, $sql);
+
+        $pdo    = $this->query($sql, [], false, true);
         $result = $pdo->fetchAll(PDO::FETCH_ASSOC);
         $info   = [];
+
         foreach ($result as $key => $val) {
             $info[$key] = current($val);
         }
+
         return $info;
     }
 

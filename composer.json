@@ -1,10 +1,10 @@
 {
     "name": "yaophp/orm",
-    "description": "An orm lib independence from thinkphp 5.0.2",
+    "description": "An orm lib independence from thinkphp 5.1.0RC1",
     "keywords": ["orm", "database", "active record", "thinkphp", "yaophp"],
     "license": "Apache-2.0",
     "require": {
-        "php": ">=5.4.0"
+        "php": ">=5.6.0"
     },
     "authors" : [
         {
@@ -15,6 +15,7 @@
     "autoload": {
     		"psr-4": {
 			"yaophp\\": "src/",
+			"yaophp\\service": "src/service",
 			"think\\": "src/think"
     		}
     }

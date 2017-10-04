@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -57,13 +57,14 @@ class Bootstrap extends Paginator
      */
     protected function getLinks()
     {
-        if ($this->simple)
+        if ($this->simple) {
             return '';
+        }
 
         $block = [
             'first'  => null,
             'slider' => null,
-            'last'   => null
+            'last'   => null,
         ];
 
         $side   = 3;
@@ -102,7 +103,6 @@ class Bootstrap extends Paginator
         return $html;
     }
 
-
     /**
      * 渲染分页html
      * @return mixed
@@ -126,7 +126,6 @@ class Bootstrap extends Paginator
             }
         }
     }
-
 
     /**
      * 生成一个可点击的按钮
@@ -198,7 +197,7 @@ class Bootstrap extends Paginator
      */
     protected function getPageLinkWrapper($url, $page)
     {
-        if ($page == $this->currentPage()) {
+        if ($this->currentPage() == $page) {
             return $this->getActivePageWrapper($page);
         }
 
