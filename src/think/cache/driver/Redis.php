@@ -2,17 +2,14 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache\driver;
-
 use think\cache\Driver;
-
 /**
  * Redis缓存驱动，适合单机部署、有前端代理实现高可用的场景，性能最好
  * 有需要在业务层实现读写分离、或者使用RedisCluster的需求，请使用Redisd驱动
@@ -32,7 +29,6 @@ class Redis extends Driver
         'persistent' => false,
         'prefix'     => '',
     ];
-
     /**
      * 架构函数
      * @param array $options 缓存参数
@@ -46,19 +42,16 @@ class Redis extends Driver
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
         }
-        $func          = $this->options['persistent'] ? 'pconnect' : 'connect';
+        $func = $this->options['persistent'] ? 'pconnect' : 'connect';
         $this->handler = new \Redis;
         $this->handler->$func($this->options['host'], $this->options['port'], $this->options['timeout']);
-
         if ('' != $this->options['password']) {
             $this->handler->auth($this->options['password']);
         }
-
         if (0 != $this->options['select']) {
             $this->handler->select($this->options['select']);
         }
     }
-
     /**
      * 判断缓存
      * @access public
@@ -69,7 +62,6 @@ class Redis extends Driver
     {
         return $this->handler->get($this->getCacheKey($name)) ? true : false;
     }
-
     /**
      * 读取缓存
      * @access public
@@ -79,6 +71,7 @@ class Redis extends Driver
      */
     public function get($name, $default = false)
     {
+        $this->readTimes++;
         $value = $this->handler->get($this->getCacheKey($name));
         if (is_null($value)) {
             return $default;
@@ -87,19 +80,22 @@ class Redis extends Driver
         // 检测是否为JSON数据 true 返回JSON解析数组, false返回源数据 byron sampson<xiaobo.sun@qq.com>
         return (null === $jsonData) ? $value : $jsonData;
     }
-
     /**
      * 写入缓存
      * @access public
-     * @param string    $name 缓存变量名
-     * @param mixed     $value  存储数据
-     * @param integer   $expire  有效时间（秒）
+     * @param string            $name 缓存变量名
+     * @param mixed             $value  存储数据
+     * @param integer|\DateTime $expire  有效时间（秒）
      * @return boolean
      */
     public function set($name, $value, $expire = null)
     {
+        $this->writeTimes++;
         if (is_null($expire)) {
             $expire = $this->options['expire'];
+        }
+        if ($expire instanceof \DateTime) {
+            $expire = $expire->getTimestamp() - time();
         }
         if ($this->tag && !$this->has($name)) {
             $first = true;
@@ -115,7 +111,6 @@ class Redis extends Driver
         isset($first) && $this->setTagItem($key);
         return $result;
     }
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -125,10 +120,10 @@ class Redis extends Driver
      */
     public function inc($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return $this->handler->incrby($key, $step);
     }
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -138,10 +133,10 @@ class Redis extends Driver
      */
     public function dec($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return $this->handler->decrby($key, $step);
     }
-
     /**
      * 删除缓存
      * @access public
@@ -150,9 +145,9 @@ class Redis extends Driver
      */
     public function rm($name)
     {
+        $this->writeTimes++;
         return $this->handler->delete($this->getCacheKey($name));
     }
-
     /**
      * 清除缓存
      * @access public
@@ -170,7 +165,7 @@ class Redis extends Driver
             $this->rm('tag_' . md5($tag));
             return true;
         }
+        $this->writeTimes++;
         return $this->handler->flushDB();
     }
-
 }

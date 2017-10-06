@@ -2,24 +2,24 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache;
-
+use think\Container;
 /**
  * 缓存基础类
  */
 abstract class Driver
 {
-    protected $handler = null;
-    protected $options = [];
+    protected $handler    = null;
+    protected $readTimes  = 0;
+    protected $writeTimes = 0;
+    protected $options    = [];
     protected $tag;
-
     /**
      * 判断缓存是否存在
      * @access public
@@ -27,7 +27,6 @@ abstract class Driver
      * @return bool
      */
     abstract public function has($name);
-
     /**
      * 读取缓存
      * @access public
@@ -36,7 +35,6 @@ abstract class Driver
      * @return mixed
      */
     abstract public function get($name, $default = false);
-
     /**
      * 写入缓存
      * @access public
@@ -46,7 +44,6 @@ abstract class Driver
      * @return boolean
      */
     abstract public function set($name, $value, $expire = null);
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -55,7 +52,6 @@ abstract class Driver
      * @return false|int
      */
     abstract public function inc($name, $step = 1);
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -64,7 +60,6 @@ abstract class Driver
      * @return false|int
      */
     abstract public function dec($name, $step = 1);
-
     /**
      * 删除缓存
      * @access public
@@ -72,7 +67,6 @@ abstract class Driver
      * @return boolean
      */
     abstract public function rm($name);
-
     /**
      * 清除缓存
      * @access public
@@ -80,7 +74,6 @@ abstract class Driver
      * @return boolean
      */
     abstract public function clear($tag = null);
-
     /**
      * 获取实际的缓存标识
      * @access public
@@ -91,7 +84,6 @@ abstract class Driver
     {
         return $this->options['prefix'] . $name;
     }
-
     /**
      * 读取缓存并删除
      * @access public
@@ -105,10 +97,9 @@ abstract class Driver
             $this->rm($name);
             return $result;
         } else {
-            return null;
+            return;
         }
     }
-
     /**
      * 如果不存在则写入缓存
      * @access public
@@ -120,16 +111,32 @@ abstract class Driver
     public function remember($name, $value, $expire = null)
     {
         if (!$this->has($name)) {
-            if ($value instanceof \Closure) {
-                $value = call_user_func($value);
+            $time = time();
+            while ($time + 5 > time() && $this->has($name . '_lock')) {
+                // 存在锁定则等待
+                usleep(100000);
             }
-            $this->set($name, $value, $expire);
+            try {
+                // 锁定
+                $this->set($name . '_lock', true);
+                if ($value instanceof \Closure) {
+                    // 获取缓存数据
+                    $value = Container::getInstance()->invokeFunction($value);
+                }
+                // 缓存数据
+                $this->set($name, $value, $expire);
+                // 解锁
+                $this->rm($name . '_lock');
+            } catch (\Exception $e) {
+                $this->rm($name . '_lock');
+            } catch (\throwable $e) {
+                $this->rm($name . '_lock');
+            }
         } else {
             $value = $this->get($name);
         }
         return $value;
     }
-
     /**
      * 缓存标签
      * @access public
@@ -140,7 +147,8 @@ abstract class Driver
      */
     public function tag($name, $keys = null, $overlay = false)
     {
-        if (is_null($keys)) {
+        if (is_null($name)) {
+        } elseif (is_null($keys)) {
             $this->tag = $name;
         } else {
             $key = 'tag_' . md5($name);
@@ -153,11 +161,10 @@ abstract class Driver
             } else {
                 $value = array_unique(array_merge($this->getTagItem($name), $keys));
             }
-            $this->set($key, implode(',', $value));
+            $this->set($key, implode(',', $value), 0);
         }
         return $this;
     }
-
     /**
      * 更新标签
      * @access public
@@ -170,15 +177,15 @@ abstract class Driver
             $key       = 'tag_' . md5($this->tag);
             $this->tag = null;
             if ($this->has($key)) {
-                $value = $this->get($key);
-                $value .= ',' . $name;
+                $value   = explode(',', $this->get($key));
+                $value[] = $name;
+                $value   = implode(',', array_unique($value));
             } else {
                 $value = $name;
             }
-            $this->set($key, $value);
+            $this->set($key, $value, 0);
         }
     }
-
     /**
      * 获取标签包含的缓存标识
      * @access public
@@ -190,12 +197,11 @@ abstract class Driver
         $key   = 'tag_' . md5($tag);
         $value = $this->get($key);
         if ($value) {
-            return explode(',', $value);
+            return array_filter(explode(',', $value));
         } else {
             return [];
         }
     }
-
     /**
      * 返回句柄对象，可执行其它高级方法
      *
@@ -205,5 +211,13 @@ abstract class Driver
     public function handler()
     {
         return $this->handler;
+    }
+    public function getReadTimes()
+    {
+        return $this->readTimes;
+    }
+    public function getWriteTimes()
+    {
+        return $this->writeTimes;
     }
 }

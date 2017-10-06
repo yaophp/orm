@@ -6,6 +6,7 @@ use think\App;
 use think\Container;
 use think\Facade;
 use think\Config;
+use think\Cache;
 use think\Log;
 
 class Orm{
@@ -70,6 +71,7 @@ class Orm{
 				'app'                   => App::class,
 				'config'                => Config::class,
 				'log'                   => Log::class,
+				'cache'					=> Cache::class,
 				// 接口依赖注入
 				'think\LoggerInterface' => Log::class,
 			]);

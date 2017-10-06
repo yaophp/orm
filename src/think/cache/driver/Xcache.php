@@ -2,18 +2,14 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache\driver;
-
 use think\cache\Driver;
-use think\Exception;
-
 /**
  * Xcache缓存驱动
  * @author    liu21st <liu21st@gmail.com>
@@ -24,7 +20,6 @@ class Xcache extends Driver
         'prefix' => '',
         'expire' => 0,
     ];
-
     /**
      * 架构函数
      * @param array $options 缓存参数
@@ -40,7 +35,6 @@ class Xcache extends Driver
             $this->options = array_merge($this->options, $options);
         }
     }
-
     /**
      * 判断缓存
      * @access public
@@ -52,7 +46,6 @@ class Xcache extends Driver
         $key = $this->getCacheKey($name);
         return xcache_isset($key);
     }
-
     /**
      * 读取缓存
      * @access public
@@ -62,22 +55,26 @@ class Xcache extends Driver
      */
     public function get($name, $default = false)
     {
+        $this->readTimes++;
         $key = $this->getCacheKey($name);
         return xcache_isset($key) ? xcache_get($key) : $default;
     }
-
     /**
      * 写入缓存
      * @access public
-     * @param string    $name 缓存变量名
-     * @param mixed     $value  存储数据
-     * @param integer   $expire  有效时间（秒）
+     * @param string            $name 缓存变量名
+     * @param mixed             $value  存储数据
+     * @param integer|\DateTime $expire  有效时间（秒）
      * @return boolean
      */
     public function set($name, $value, $expire = null)
     {
+        $this->writeTimes++;
         if (is_null($expire)) {
             $expire = $this->options['expire'];
+        }
+        if ($expire instanceof \DateTime) {
+            $expire = $expire->getTimestamp() - time();
         }
         if ($this->tag && !$this->has($name)) {
             $first = true;
@@ -89,7 +86,6 @@ class Xcache extends Driver
         }
         return false;
     }
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -99,10 +95,10 @@ class Xcache extends Driver
      */
     public function inc($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return xcache_inc($key, $step);
     }
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -112,10 +108,10 @@ class Xcache extends Driver
      */
     public function dec($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return xcache_dec($key, $step);
     }
-
     /**
      * 删除缓存
      * @access public
@@ -124,9 +120,9 @@ class Xcache extends Driver
      */
     public function rm($name)
     {
+        $this->writeTimes++;
         return xcache_unset($this->getCacheKey($name));
     }
-
     /**
      * 清除缓存
      * @access public
@@ -144,6 +140,7 @@ class Xcache extends Driver
             $this->rm('tag_' . md5($tag));
             return true;
         }
+        $this->writeTimes++;
         if (function_exists('xcache_unset_by_prefix')) {
             return xcache_unset_by_prefix($this->options['prefix']);
         } else {

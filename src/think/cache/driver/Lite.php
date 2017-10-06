@@ -2,17 +2,14 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache\driver;
-
 use think\cache\Driver;
-
 /**
  * 文件类型缓存类
  * @author    liu21st <liu21st@gmail.com>
@@ -24,7 +21,6 @@ class Lite extends Driver
         'path'   => '',
         'expire' => 0, // 等于 10*365*24*3600（10年）
     ];
-
     /**
      * 架构函数
      * @access public
@@ -36,12 +32,10 @@ class Lite extends Driver
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
         }
-        if (substr($this->options['path'], -1) != DS) {
-            $this->options['path'] .= DS;
+        if (substr($this->options['path'], -1) != DIRECTORY_SEPARATOR) {
+            $this->options['path'] .= DIRECTORY_SEPARATOR;
         }
-
     }
-
     /**
      * 取得变量的存储文件名
      * @access protected
@@ -52,7 +46,6 @@ class Lite extends Driver
     {
         return $this->options['path'] . $this->options['prefix'] . md5($name) . '.php';
     }
-
     /**
      * 判断缓存是否存在
      * @access public
@@ -63,7 +56,6 @@ class Lite extends Driver
     {
         return $this->get($name) ? true : false;
     }
-
     /**
      * 读取缓存
      * @access public
@@ -73,11 +65,12 @@ class Lite extends Driver
      */
     public function get($name, $default = false)
     {
+        $this->readTimes++;
         $filename = $this->getCacheKey($name);
         if (is_file($filename)) {
             // 判断是否过期
             $mtime = filemtime($filename);
-            if ($mtime < $_SERVER['REQUEST_TIME']) {
+            if ($mtime < time()) {
                 // 清除已经过期的文件
                 unlink($filename);
                 return $default;
@@ -87,23 +80,25 @@ class Lite extends Driver
             return $default;
         }
     }
-
     /**
      * 写入缓存
      * @access   public
-     * @param string    $name  缓存变量名
-     * @param mixed     $value 存储数据
-     * @param int       $expire 有效时间 0为永久
+     * @param string        $name  缓存变量名
+     * @param mixed         $value 存储数据
+     * @param int|\DateTime $expire 有效时间 0为永久
      * @return bool
      */
     public function set($name, $value, $expire = null)
     {
+        $this->writeTimes++;
         if (is_null($expire)) {
             $expire = $this->options['expire'];
         }
-        // 模拟永久
-        if (0 === $expire) {
-            $expire = 10 * 365 * 24 * 3600;
+        if ($expire instanceof \DateTime) {
+            $expire = $expire->getTimestamp();
+        } else {
+            $expire = 0 === $expire ? 10 * 365 * 24 * 3600 : $expire;
+            $expire = time() + $expire;
         }
         $filename = $this->getCacheKey($name);
         if ($this->tag && !is_file($filename)) {
@@ -113,11 +108,10 @@ class Lite extends Driver
         // 通过设置修改时间实现有效期
         if ($ret) {
             isset($first) && $this->setTagItem($filename);
-            touch($filename, $_SERVER['REQUEST_TIME'] + $expire);
+            touch($filename, $expire);
         }
         return $ret;
     }
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -134,7 +128,6 @@ class Lite extends Driver
         }
         return $this->set($name, $value, 0) ? $value : false;
     }
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -147,11 +140,10 @@ class Lite extends Driver
         if ($this->has($name)) {
             $value = $this->get($name) - $step;
         } else {
-            $value = $step;
+            $value = -$step;
         }
         return $this->set($name, $value, 0) ? $value : false;
     }
-
     /**
      * 删除缓存
      * @access public
@@ -160,9 +152,9 @@ class Lite extends Driver
      */
     public function rm($name)
     {
+        $this->writeTimes++;
         return unlink($this->getCacheKey($name));
     }
-
     /**
      * 清除缓存
      * @access   public
@@ -180,6 +172,7 @@ class Lite extends Driver
             $this->rm('tag_' . md5($tag));
             return true;
         }
-        array_map("unlink", glob($this->options['path'] . ($this->options['prefix'] ? $this->options['prefix'] . DS : '') . '*.php'));
+        $this->writeTimes++;
+        array_map("unlink", glob($this->options['path'] . ($this->options['prefix'] ? $this->options['prefix'] . DIRECTORY_SEPARATOR : '') . '*.php'));
     }
 }

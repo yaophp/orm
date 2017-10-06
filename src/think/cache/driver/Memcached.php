@@ -2,17 +2,14 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache\driver;
-
 use think\cache\Driver;
-
 class Memcached extends Driver
 {
     protected $options = [
@@ -25,7 +22,6 @@ class Memcached extends Driver
         'password' => '', //密码
         'option'   => [],
     ];
-
     /**
      * 架构函数
      * @param array $options 缓存参数
@@ -64,7 +60,6 @@ class Memcached extends Driver
             $this->handler->setSaslAuthData($this->options['username'], $this->options['password']);
         }
     }
-
     /**
      * 判断缓存
      * @access public
@@ -76,7 +71,6 @@ class Memcached extends Driver
         $key = $this->getCacheKey($name);
         return $this->handler->get($key) ? true : false;
     }
-
     /**
      * 读取缓存
      * @access public
@@ -86,35 +80,37 @@ class Memcached extends Driver
      */
     public function get($name, $default = false)
     {
+        $this->readTimes++;
         $result = $this->handler->get($this->getCacheKey($name));
         return false !== $result ? $result : $default;
     }
-
     /**
      * 写入缓存
      * @access public
-     * @param string    $name 缓存变量名
-     * @param mixed     $value  存储数据
-     * @param integer   $expire  有效时间（秒）
+     * @param string            $name 缓存变量名
+     * @param mixed             $value  存储数据
+     * @param integer|\DateTime $expire  有效时间（秒）
      * @return bool
      */
     public function set($name, $value, $expire = null)
     {
+        $this->writeTimes++;
         if (is_null($expire)) {
             $expire = $this->options['expire'];
+        }
+        if ($expire instanceof \DateTime) {
+            $expire = $expire->getTimestamp() - time();
         }
         if ($this->tag && !$this->has($name)) {
             $first = true;
         }
-        $key    = $this->getCacheKey($name);
-        $expire = 0 == $expire ? 0 : $_SERVER['REQUEST_TIME'] + $expire;
+        $key = $this->getCacheKey($name);
         if ($this->handler->set($key, $value, $expire)) {
             isset($first) && $this->setTagItem($key);
             return true;
         }
         return false;
     }
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -124,10 +120,13 @@ class Memcached extends Driver
      */
     public function inc($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
-        return $this->handler->increment($key, $step);
+        if ($this->handler->get($key)) {
+            return $this->handler->increment($key, $step);
+        }
+        return $this->handler->set($key, $step);
     }
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -137,6 +136,7 @@ class Memcached extends Driver
      */
     public function dec($name, $step = 1)
     {
+        $this->writeTimes++;
         $key   = $this->getCacheKey($name);
         $value = $this->handler->get($key) - $step;
         $res   = $this->handler->set($key, $value);
@@ -146,7 +146,6 @@ class Memcached extends Driver
             return $value;
         }
     }
-
     /**
      * 删除缓存
      * @param    string  $name 缓存变量名
@@ -155,12 +154,12 @@ class Memcached extends Driver
      */
     public function rm($name, $ttl = false)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return false === $ttl ?
         $this->handler->delete($key) :
         $this->handler->delete($key, $ttl);
     }
-
     /**
      * 清除缓存
      * @access public
@@ -176,6 +175,7 @@ class Memcached extends Driver
             $this->rm('tag_' . md5($tag));
             return true;
         }
+        $this->writeTimes++;
         return $this->handler->flush();
     }
 }

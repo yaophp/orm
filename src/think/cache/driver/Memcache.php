@@ -2,18 +2,14 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2017 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
 namespace think\cache\driver;
-
 use think\cache\Driver;
-use think\Exception;
-
 class Memcache extends Driver
 {
     protected $options = [
@@ -24,7 +20,6 @@ class Memcache extends Driver
         'persistent' => true,
         'prefix'     => '',
     ];
-
     /**
      * 架构函数
      * @param array $options 缓存参数
@@ -54,7 +49,6 @@ class Memcache extends Driver
             $this->handler->addServer($host, $port, $this->options['persistent'], 1);
         }
     }
-
     /**
      * 判断缓存
      * @access public
@@ -66,7 +60,6 @@ class Memcache extends Driver
         $key = $this->getCacheKey($name);
         return $this->handler->get($key) ? true : false;
     }
-
     /**
      * 读取缓存
      * @access public
@@ -76,22 +69,26 @@ class Memcache extends Driver
      */
     public function get($name, $default = false)
     {
+        $this->readTimes++;
         $result = $this->handler->get($this->getCacheKey($name));
         return false !== $result ? $result : $default;
     }
-
     /**
      * 写入缓存
      * @access public
-     * @param string    $name 缓存变量名
-     * @param mixed     $value  存储数据
-     * @param integer   $expire  有效时间（秒）
+     * @param string        $name 缓存变量名
+     * @param mixed         $value  存储数据
+     * @param int|DateTime  $expire  有效时间（秒）
      * @return bool
      */
     public function set($name, $value, $expire = null)
     {
+        $this->writeTimes++;
         if (is_null($expire)) {
             $expire = $this->options['expire'];
+        }
+        if ($expire instanceof \DateTime) {
+            $expire = $expire->getTimestamp() - time();
         }
         if ($this->tag && !$this->has($name)) {
             $first = true;
@@ -103,7 +100,6 @@ class Memcache extends Driver
         }
         return false;
     }
-
     /**
      * 自增缓存（针对数值缓存）
      * @access public
@@ -113,10 +109,13 @@ class Memcache extends Driver
      */
     public function inc($name, $step = 1)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
-        return $this->handler->increment($key, $step);
+        if ($this->handler->get($key)) {
+            return $this->handler->increment($key, $step);
+        }
+        return $this->handler->set($key, $step);
     }
-
     /**
      * 自减缓存（针对数值缓存）
      * @access public
@@ -126,6 +125,7 @@ class Memcache extends Driver
      */
     public function dec($name, $step = 1)
     {
+        $this->writeTimes++;
         $key   = $this->getCacheKey($name);
         $value = $this->handler->get($key) - $step;
         $res   = $this->handler->set($key, $value);
@@ -135,7 +135,6 @@ class Memcache extends Driver
             return $value;
         }
     }
-
     /**
      * 删除缓存
      * @param    string  $name 缓存变量名
@@ -144,12 +143,12 @@ class Memcache extends Driver
      */
     public function rm($name, $ttl = false)
     {
+        $this->writeTimes++;
         $key = $this->getCacheKey($name);
         return false === $ttl ?
         $this->handler->delete($key) :
         $this->handler->delete($key, $ttl);
     }
-
     /**
      * 清除缓存
      * @access public
@@ -167,6 +166,7 @@ class Memcache extends Driver
             $this->rm('tag_' . md5($tag));
             return true;
         }
+        $this->writeTimes++;
         return $this->handler->flush();
     }
 }
